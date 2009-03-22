@@ -1,0 +1,206 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+ <head>
+   <title>pretty-function</title>
+   <link rel="stylesheet" type="text/css" href="style.css"/>
+ <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"/>
+</head>
+
+
+
+
+<body>
+ <div class="header">
+  <h1>pretty-function</h1>
+ </div>
+
+ <h3>introduction</h3>
+
+ <p>`pretty-function' provides an API for making individual functions pprint differently when written to an output stream.</p>
+
+ <h3>download</h3>
+
+ <p>wait 2 seconds, I'm uploading it as your reading this</p>
+
+<h3>license</h3>
+
+<p><a href="http://en.wikipedia.org/wiki/BSD_License">BSD</a> &copy; 2007 <a href="http://streamtech.nl">Streamtech</a></p>
+
+<h3>supported implimentations</h3>
+
+<p><a href="#enable-pretty-function-printing"><code>ENABLE-PRETTY-FUNCTION-PRINTING</code></a> seems to work and the tests in pretty-function-test.lisp pass on the following implimentations:</p>
+
+<ul>
+  <li>ACL</li>
+  <li>Clisp</li>
+  <li>CMUCL</li>
+  <li>Lispworks</li>
+  <li>OpenMCL/MCL</li>
+  <li>SBCL</li>
+</ul>
+
+<p>the rest should fail gracefully by not pprinting pretty functions any differently from normal functions</p>
+
+<h3>when to use pretty functions</h3>
+
+<p>`pretty-functions' is intended to make code with a lot of first class functions and closures saner to debug.</p>
+
+<p>there is a little extra work involved when creating or garbage-collecting pretty functions, so they probubly shouldn't be used in situations where arbitrarily large amounts of closures being created and garbage-collected at runtime.</p>
+
+<p>a good example use-case is a <a href="http://weitz.de/hunchentoot/">hunchentoot</a>-powered web application:</p>
+
+<p>hunchentoot deals with HTTP requests by means of a global <a href="http://weitz.de/hunchentoot/#handlers">dispatch table</a>. the dispatch table is a list of function indicators ("dispatchers") that often contains a buch of closures (such as the one created by <code><a href="http://weitz.de/hunchentoot/#create-static-file-dispatcher-and-handler">create-static-file-dispatcher-and-handler</a></code>). when hunchentoot gets an HTTP request, each dispatcher is called with the request object as an argument. when a dispatcher decides to handle this request, it signals its intent by returning another function (a "handler") that, when called, does all the HTML/HTTP stuff associated with handling the request.</p>
+
+<p>dispatchers are perfect canidates for pretty-functions since, as pretty functions, they can pprint something informative like</p>
+
+<pre class="code">#&lt;static-file-dispatcher "/foo/bar.html"&gt;</pre>
+
+<p>instead of the usual</p>
+
+<pre class="code">#&lt;what-the-hell-am-i&gt;</pre>
+
+<p>in a stack trace or when a programmer is visually inspecting the dispatch table via the REPL.</p>
+
+<p>hunchentoot's dynamically generated handlers, on the other hand, are not good canidates for pretty function forms because there could be <a href="http://en.wikipedia.org/wiki/Indefinite_and_fictitious_large_numbers">zillions</a> of them being created and garbage collected at runtime.</p>
+
+<p>the existence of pretty functions in a lisp image does not create any more work when creating or garbage collecting "normal" functions or closures (those not created with pretty function forms).</p>
+
+<h3>api</h3>
+
+<div class="def" >
+ <p><span>function</span><br/> <code><a name="enable-pretty-function-printing"></a><b>ENABLE-PRETTY-FUNCTION-PRINTING</b> (&amp;optional (priority 0) (table *print-pprint-dispatch*))</code></p>
+</div>
+ <div class="desc">
+   <p>modifies the pprint dispatch table <code>TABLE</code> to pprint functions using their pretty function printer (see <a href="#get-function-printer"><code>GET-FUNCTION-PRINTER</code></a>).</p>
+
+   <p>this means that you can make all the pretty functions you want, but until you run</p>
+
+   <pre class="code">(enable-pretty-function-printing)</pre>
+
+   <p>they wont print differently in the REPL or in stack traces!</p>
+
+   <p>for info on its arguments, see <a href="http://www.lisp.org/HyperSpec/Body/fun_set-pprint-dispatch.html"><code>SET-PPRINT-DISPATCH</code></a>.</p>
+</div>
+
+<div class="def">
+  <p><span>macro</span><br/> <code><b><a name="named-lambda"></a>NAMED-LAMBDA</b> (name lambda-list &amp;body body)</code></p>
+</div>
+
+<div class="desc">
+
+  <p>like <a href="http://www.lisp.org/HyperSpec/Body/sym_lambda.html"><code>LAMBDA</code></a> except the resultant function is written as</p>
+
+  <pre class="code">#&lt;named-lambda NAME&gt;</pre>
+
+  <p>when pprinted to a stream and pretty printing functions is enabled (see <a href="#enable-pretty-function-printing"><code>ENABLE-PRETTY-FUNCTION-PRINTING</code></a>).</p>
+
+  <p><code>NAME</code> is not evaluated.</p>
+
+  <p>caveat: unlike <a href="http://www.lisp.org/HyperSpec/Body/sym_lambda.html"><code>LAMBDA</code></a>, <a href="#named-lambda"><code>NAMED-LAMBDA</code></a> cannot be used as the first element of a list.</p>
+
+  <p>so</p>
+
+  <pre class="code">((lambda (a b) (+ a b)) 5 6) => 11</pre>
+
+  <p>but</p>
+
+  <pre class="code">((named-lambda mistake (a b) (+ a b)) 5 6) ==> THROWS AN ERROR</pre>
+</div>
+
+<div class="def">
+  <p><span>macro</span><br/> <code><b>NAMED-LAMBDA*</b> (name-form lambda-list &amp;body body)</code></p>
+</div>
+
+<div class="desc">
+
+  <p>like <a href="#named-lambda"><code>NAMED-LAMBDA</code></a> except <code>NAME-FORM</code> is evaluated</p>
+</div>
+
+<div class="def">
+  <p><span>macro</span><br/> <code><b><a name="with-function-printer"></a>WITH-FUNCTION-PRINTER</b> (printer fn-form)</code></p>
+</div>
+
+<div class="desc">
+
+  <p>returns the result of evaluating <code>FN-FORM</code>, which should return a function.</p>
+
+  <p>the resultant function will be written by <code>PRINTER</code> when pprinted to a stream and pretty printing functions is enabled (see <a href="#enable-pretty-function-printing"><code>ENABLE-PRETTY-FUNCTION-PRINTING</code></a>).</p>
+
+  <p><code>PRINTER</code> should be a lambda expression or name of a function that takes <code>STREAM</code> as its only argument and prints a pretty representation of <code>FUNCTION</code> to that <code>STREAM</code></p>
+
+<pre class="code">
+CL-USER> (enable-pretty-function-printing)
+
+CL-USER> (let ((n 0))
+           (setf x (with-function-printer (lambda (s) (format s "#&lt;counter ~A&gt;" n))
+                      (lambda () (incf n)))))
+
+#&lt;counter 0&gt;
+
+CL-USER> (funcall x)
+1
+
+CL-USER> x
+#&lt;counter 1&gt;
+</pre>
+</div>
+
+
+<div class="def">
+  <p><span>variable</span><br/> <code><b>*PRETTY-FUNCTION-PRINTING-SUPPORTED-P*</b></code></p>
+</div>
+
+<div class="desc">
+
+  <p>is <code>T</code> on implimentations that support pretty function printing, <code>NIL</code> on the rest</p>
+</div>
+
+<div class="def">
+  <p><span>function</span><br/> <code><b>PRINT-PRETTY-FUNCTION-TABLE</b> (&amp;optional (stream *standard-output*))</code></p>
+</div>
+
+<div class="desc">
+
+  <p>prints all known pretty functions</p>
+</div>
+
+<div class="def">
+  <p><span>function</span><br/> <code><b>CLEAR-PRETTY-FUNCTION-TABLE</b> (&amp;optional (stream *standard-output*))</code></p>
+</div>
+
+<div class="desc">
+
+  <p>turns all known pretty functions into normal, non-pretty functions.</p>
+
+  <p>individual pretty functions can also be turned back into normal functions by <code>SETF</code>-ing their <a href="#get-function-printer"><code>GET-FUNCTION-PRINTER</code></a> to <code>NIL</code></p>
+</div>
+
+<div class="def">
+  <p><span>function</span><br/> <a name="get-function-printer"></a><code><b>GET-FUNCTION-PRINTER</b> (function)</code></p>
+</div>
+
+<div class="desc">
+
+  <p>returns the function responsible for pprinting the pretty function <code>FUNCTION</code> or <code>NIL</code> if <code>FUNCTION</code> is not a pretty function.</p>
+
+  <p>you can turn a non-pretty function into a pretty function by <code>SETF</code>-ing <code><a href="#get-function-printer">GET-FUNCTION-PRINTER</a></code> to a an acceptible printer (see <a href="#with-function-printer"><code>WITH-FUNCTION-PRINTER</code></a>). you can also turn a pretty function back into a normal function by <code>SETF</code>-ing its <a href="#get-function-printer"><code>GET-FUNCTION-PRINTER</code></a> to <code>NIL</code></p>
+</div>
+
+ <h3>Mailing Lists</h3>
+ <ul>
+  <li>
+   <a
+    href="http://www.common-lisp.net/mailman/listinfo/pretty-function-devel">
+    pretty-function-devel</a><br/>for developers</li>
+  <li>
+   <a
+    href="http://www.common-lisp.net/mailman/listinfo/pretty-function-announce">
+    pretty-function-announce</a><br/>for announcements.</li>
+    <li>
+    email the author/maintainer (Nick Allen) directly at nallen05@&lt;first-letter-of-Google&gt;mail.com</li>    
+ </ul>
+
+ </body>
+</html>

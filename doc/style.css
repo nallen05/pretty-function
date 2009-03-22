@@ -1,0 +1,68 @@
+body {
+  margin: 0;
+  font-family: times new roman,tahoma, arial, sans-serif;
+  padding: 1em 3em;
+
+  color: black;
+}
+
+h1 {
+  font-family: arial, sans-serif;
+  border-bottom: 3px solid #009ACD;
+}
+
+h3 {
+  font-family: arial, sans-serif;
+  font-size: 12pt;
+}
+
+p {
+  margin-left: 1em;
+}
+
+code {
+  font-family: monospace, courier-new;
+  font-size: 1.2em;
+}
+
+pre.code {
+  margin-left: 3em;
+  padding: 7px;
+  border: 1px solid #999999;
+  font-family: monospace;
+}
+
+.def {
+  margin-top: 1.5em;
+  font-family: courier;
+  padding-left: 1em;
+}
+
+.def span {
+  color: #555555;
+  font-weight: bold;
+  font-family: tahoma, arial, sans-serif;
+  font-size: .8em;
+}
+
+.desc {
+  margin-left: 3em;
+}
+
+thead {
+  font-weight: bold;
+}
+
+a:link {
+  color: #00688B;
+  text-decoration: none;
+}
+
+a:visited {
+  color: #00688B;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
