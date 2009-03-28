@@ -61,9 +61,9 @@ The existence of pretty functions in a lisp image does not create any more work 
 
 ## API
 
-- - -
-
 * `ENABLE-PRETTY-FUNCTION-PRINTING (&optional (priority 0) (table *print-pprint-dispatch*))`
+
+- - -
 
    _Function_ that modifies the pprint dispatch table `TABLE` to pprint functions using their pretty function printer (see `GET-FUNCTION-PRINTER`).
 
@@ -75,9 +75,9 @@ The existence of pretty functions in a lisp image does not create any more work 
 
    for info in its arguments, see Common Lisp's `SET-PPRINT-DISPATCH`.
 
-- - -
-
 * `NAMED-LAMBDA (name lambda-list &body body)`
+
+- - -
 
    _Macro_ like `LAMBDA` except the resultant function is prittern as
 
@@ -97,15 +97,15 @@ The existence of pretty functions in a lisp image does not create any more work 
 
     ((named-lambda mistake (a b) (+ a b)) 5 6) ==> THROWS AN ERROR
 
-- - -
-
 * `NAMED-LAMBDA (name-form lambda-list &body body)`
+
+- - -
 
    _Macro_ like `NAMED-LAMBDA` except `NAME-FORM` is evaluated
 
-- - -
-
 * `WITH-FUNCTION-PRINTER (printer fn-form)`
+
+- - -
 
    _Macro_ returns the result of evaluating `FN-FORM`, which should return a function.
 
@@ -127,29 +127,29 @@ The existence of pretty functions in a lisp image does not create any more work 
     CL-USER> x
     #<counter 1>
 
-- - -
-
 * `*PRETTY-FUNCTION-PRINTING-SUPPORTED-P*`
+
+- - -
 
   _Variable_. Is `T` on implementations that support pretty function printing, `NIL, on the rest.
 
-- - -
-
 * `PRINT-PRETTY-FUNCTION-TABLE (&optional (stream *standard-output*))`
+
+- - -
 
   _Function_. prints all known pretty functions to `STREAM`
 
-- - -
-
 * `CLEAR-PRETTY-FUNCTION-TABLE ()`
+
+- - -
 
   _Function_ that turns all known pretty functions into normal, non-pretty functions.
 
   Individual pretty functions can also be turned back into normal functions by `SETF`-ing their `GET-FUNCTION-PRINTER` to `NIL`
 
-- - -
-
 * `GET-FUNCTION-PRINTER (function)`
+
+- - -
 
   `SETF`-able _Function_ for accessing the pretty function printer of `FUNCTION` or `NIL` if `FUNCTION` is not a pretty function.
 
