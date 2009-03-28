@@ -63,7 +63,7 @@ The existence of pretty functions in a lisp image does not create any more work 
 
 - - -
 
-* `ENABLE-PRETTY-FUNCTION-PRINTING (&optional (priority 0) (table *print-pprint-dispatch*))
+* `ENABLE-PRETTY-FUNCTION-PRINTING (&optional (priority 0) (table *print-pprint-dispatch*))`
 
    _Function_ that modifies the pprint dispatch table `TABLE` to pprint functions using their pretty function printer (see `GET-FUNCTION-PRINTER`).
 
@@ -75,13 +75,15 @@ The existence of pretty functions in a lisp image does not create any more work 
 
    for info in its arguments, see Common Lisp's `SET-PPRINT-DISPATCH`.
 
+- - -
+
 * `NAMED-LAMBDA (name lambda-list &body body)`
 
    _Macro_ like `LAMBDA` except the resultant function is prittern as
 
     #<named-lambda NAME>
 
-   when pprinted to a stream and pretty printing functions has been enabled (see `ENABLE-PRETTy-FUNCTION-PRINTING).
+   when pprinted to a stream and pretty printing functions has been enabled (see `ENABLE-PRETTy-FUNCTION-PRINTING`).
 
    `NAME` is not evaluated.
 
@@ -93,11 +95,15 @@ The existence of pretty functions in a lisp image does not create any more work 
 
    but
 
-   ((named-lambda mistake (a b) (+ a b)) 5 6) ==> THROWS AN ERROR
+    ((named-lambda mistake (a b) (+ a b)) 5 6) ==> THROWS AN ERROR
+
+- - -
 
 * `NAMED-LAMBDA (name-form lambda-list &body body)`
 
    _Macro_ like `NAMED-LAMBDA` except `NAME-FORM` is evaluated
+
+- - -
 
 * `WITH-FUNCTION-PRINTER (printer fn-form)`
 
@@ -121,19 +127,27 @@ The existence of pretty functions in a lisp image does not create any more work 
     CL-USER> x
     #<counter 1>
 
+- - -
+
 * `*PRETTY-FUNCTION-PRINTING-SUPPORTED-P*`
 
   _Variable_. Is `T` on implementations that support pretty function printing, `NIL, on the rest.
 
+- - -
+
 * `PRINT-PRETTY-FUNCTION-TABLE (&optional (stream *standard-output*))`
 
   _Function_. prints all known pretty functions to `STREAM`
+
+- - -
 
 * `CLEAR-PRETTY-FUNCTION-TABLE ()`
 
   _Function_ that turns all known pretty functions into normal, non-pretty functions.
 
   Individual pretty functions can also be turned back into normal functions by `SETF`-ing their `GET-FUNCTION-PRINTER` to `NIL`
+
+- - -
 
 * `GET-FUNCTION-PRINTER (function)`
 
