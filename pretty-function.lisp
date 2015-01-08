@@ -189,21 +189,19 @@
   (defun .outdate-weak-fn-alist ()
     "This function notes that the current value of *weak-fn-alist* is
      outdated."
-    (setf *weak-fn-alist-outdated-p* t)))
-
-#+(or cmu sbcl)
-(progn
+    (setf *weak-fn-alist-outdated-p* t))
 
   (defun .update-weak-fn-alist ()
     "Update *weak-fn-alist*. This will remove all of the functions
      that are no longer accessible."
-    (setf *weak-fn-alist* (remove-if-not (lambda (a)
-					   (and (rest a)
-						(#+cmu     ext:weak-pointer-value
-                                                 #+sbcl sb-ext:weak-pointer-value
-                                                 (first a))))
-					 *weak-fn-alist*)
-	  *weak-fn-alist-outdated-p* nil))
+    (setf *weak-fn-alist* (remove-if-not
+                            (lambda (a)
+                              (and (rest a)
+                                   (#+cmu     ext:weak-pointer-value
+                                    #+sbcl sb-ext:weak-pointer-value
+                                    (first a))))
+                            *weak-fn-alist*)
+          *weak-fn-alist-outdated-p* nil))
 
   ;; Update *weak-fn-alist* after every garbage collection.
   (pushnew '.update-weak-fn-alist
