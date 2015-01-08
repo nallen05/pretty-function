@@ -1,4 +1,4 @@
-;; -*- Mode: LISP;  Syntax: COMMON-LISP; Package: CL-USER; -*- 
+;; -*- Mode: LISP;  Syntax: COMMON-LISP; Package: CL-USER; -*-
 ;; Sun Oct 21 11:55:20 2007 by Nick Allen <nallen05@gmail.com>
 ;; pretty-function.lisp
 
@@ -38,7 +38,7 @@
 
 ;;      they wont print differently in the REPL or in stack traces!
 
-;; macro: NAMED-LAMBDA (name lambda-list &body body) 
+;; macro: NAMED-LAMBDA (name lambda-list &body body)
 
 ;;     like LAMBDA except the resultant function is written as #<named-lambda NAME>
 ;;     when pprinted to a stream when pretty printing functions is enabled (see
@@ -127,21 +127,22 @@
 (in-package :pretty-function)
 
 
-;supported implimentations
+; Supported implimentations.
 
 (defparameter *pretty-function-printing-supported-p*
- 
   #+(or allegro clisp cmu lispworks mcl sbcl) t
-
   #-(or allegro clisp cmu lispworks mcl sbcl) nil
-)
+  "Is the pretty-function library supported?")
 
 
-;enabling pretty function printing
+; Enabling pretty function printing.
 
-(defvar *pretty-function-printing-enabled-p* nil)
+(defvar *pretty-function-printing-enabled-p* nil
+  "Is the pretty-function library enabled?")
 
 (defun enable-pretty-function-printing (&optional (priority 0) (table *print-pprint-dispatch*))
+  "Enable the pretty-function library. This will cause all lambda
+   functions defined by 'named-lambda' to be printed by their name."
 
   #+(or allegro clisp cmu lispworks mcl sbcl)
   (progn
@@ -157,86 +158,76 @@
 	  (lisp-implementation-version)))
 
 (defun .print-pretty-function (s fn)
+  "Pretty print a function."
   (let ((printer (get-function-printer fn)))
     (if printer
 	(funcall (coerce printer 'function) s)
+        ;; If there is no printer associated with this function,
+        ;; print it normally.
 	(let ((*print-pretty* nil))
 	  (write fn :stream s)))))
 
 
-;the machinary
+; The machinary.
 
-#+allegro
+#+(or allegro clisp lispworks mcl)
  (defvar *weak-fn-ht* (make-hash-table :test #'eq
-				       :weak-keys t))
-
-#+(or clisp mcl)
-(defvar *weak-fn-ht* (make-hash-table :test #'eq
-				      :weak :key))
-
-#+lispworks
-(defvar *weak-fn-ht* (make-hash-table :test #'eq
-				      :weak-kind :key))
+				       #+allegro :weak-keys #+allegro t
+                                       #+(or clisp mcl) :weak #+lispworks :weak-kind
+                                       #+(or clisp lispworks mcl) :key)
+   "A hash-table mapping functions to their printers.")
 
 #+(or cmu sbcl)
 (progn
 
-  (defvar *weak-fn-alist* nil)
+  (defvar *weak-fn-alist* nil
+    "An alist mapping functions to their printers.")
 
-  (defvar *weak-fn-alist-outdated-p* nil)
+  (defvar *weak-fn-alist-outdated-p* nil
+    "Is the current value of *weak-fn-alist* outdated?")
 
   (defun .outdate-weak-fn-alist ()
-    (setf *weak-fn-alist-outdated-p* t)))
-
-#+cmu
-(progn
-
-  (defun .update-weak-fn-alist ()
-    (if *weak-fn-alist-outdated-p*
-	(setf *weak-fn-alist* (remove-if-not (lambda (a)
-					       (and (rest a)
-						    (ext:weak-pointer-value (first a))))
-					     *weak-fn-alist*)
-	      *weak-fn-alist-outdated-p* nil)))
-
-  (pushnew '.update-weak-fn-alist ext:*after-gc-hooks*))
-
-#+sbcl
-(progn
+    "This function notes that the current value of *weak-fn-alist* is
+     outdated."
+    (setf *weak-fn-alist-outdated-p* t))
 
   (defun .update-weak-fn-alist ()
-    (setf *weak-fn-alist* (remove-if-not (lambda (a)
-					   (and (rest a)
-						(sb-ext:weak-pointer-value (first a))))
-					 *weak-fn-alist*)
-	  *weak-fn-alist-outdated-p* nil))
+    "Update *weak-fn-alist*. This will remove all of the functions
+     that are no longer accessible."
+    (setf *weak-fn-alist* (remove-if-not
+                            (lambda (a)
+                              (and (rest a)
+                                   (#+cmu     ext:weak-pointer-value
+                                    #+sbcl sb-ext:weak-pointer-value
+                                    (first a))))
+                            *weak-fn-alist*)
+          *weak-fn-alist-outdated-p* nil))
 
-  (pushnew '.update-weak-fn-alist sb-ext:*after-gc-hooks*))
+  ;; Update *weak-fn-alist* after every garbage collection.
+  (pushnew '.update-weak-fn-alist
+           #+cmu     ext:*after-gc-hooks*
+           #+sbcl sb-ext:*after-gc-hooks*))
 
 ;WITH-FUNCTION-PRINTER macro
 
 (defmacro with-function-printer (printer fn)
+  "Assign the printer that results from evaluating PRINTER, to the
+   function that results from evaluating FN."
 
-  #+(or allegro lispworks mcl clisp)
+  #+(or allegro clisp cmu lispworks mcl sbcl)
   `(let ((p ,printer)
 	 (f ,fn))
-    (setf (gethash f *weak-fn-ht*) p)
-    f)
+    #+(or allegro clisp lispworks mcl)
+    (progn (setf (gethash f *weak-fn-ht*) p) f)
 
-  #+cmu
-  `(let ((p ,printer)
-	 (f ,fn))
-    (let ((w (extensions:make-weak-pointer f)))
+    #+(or cmu sbcl)
+    (let ((w (#+cmu  extensions:make-weak-pointer
+              #+sbcl sb-ext:make-weak-pointer
+              f)))
       (push (cons w p) *weak-fn-alist*)
-      (extensions:finalize f #'.outdate-weak-fn-alist)
-      f))
-
-  #+sbcl
-  `(let ((p ,printer)
-	(f ,fn))
-    (let ((w (sb-ext:make-weak-pointer f)))
-      (push (cons w p) *weak-fn-alist*)
-      (sb-ext:finalize f #'.outdate-weak-fn-alist)
+      (#+cmu extensions:finalize
+       #+sbcl sb-ext:finalize
+       f #'.outdate-weak-fn-alist)
       f)))
 
 
@@ -244,6 +235,9 @@
 ;NAMED-LAMBDA and NAMED-LAMBDA* macros
 
 (defmacro named-lambda (name lambda-list &body body)
+  "Create a lambda function that is associated with NAME. Whenever
+   the pretty-function library is enabled, a function declared with
+   named-lambda will be printed with its name. NAME isn't evaluated."
 
   #+(or allegro clisp cmu lispworks mcl sbcl)
   `(named-lambda* ',name ,lambda-list ,@body)
@@ -252,6 +246,9 @@
   `(lambda ,lambda-list ,@body))
 
 (defmacro named-lambda* (name-form lambda-list &body body)
+  "Create a lambda function that is associated with NAME. Whenever
+   the pretty-function library is enabled, a function declared with
+   named-lambda will be printed with its name. NAME is evaluated."
 
   #+(or allegro clisp cmu lispworks mcl sbcl)
   `(with-function-printer (lambda (s) (format s "#<named-lambda ~A>" ,name-form))
@@ -264,13 +261,12 @@
 ;FUNCTION-PRINTER fn
 
 (defun get-function-printer (fn)
+  "Lookup the printer for the given function."
 
   #+(or allegro lispworks mcl clisp) (values (gethash fn *weak-fn-ht*))
-
-  #+sbcl (rest (assoc fn *weak-fn-alist* :key #'sb-ext:weak-pointer-value))
-
-  #+cmu (rest (assoc fn *weak-fn-alist* :key #'ext:weak-pointer-value))
-
+  #+(or cmu sbcl)
+  (rest (assoc fn *weak-fn-alist* :key #+sbcl #'sb-ext:weak-pointer-value
+                                       #+cmu     #'ext:weak-pointer-value))
   #-(or allegro clisp cmu lispworks mcl sbcl) nil
 )
 
@@ -284,32 +280,23 @@
 	(remhash f *weak-fn-ht*))
     p)
 
-  #+cmu
+  #+(or cmu sbcl)
   `(let ((f ,fn)
 	 (p ,printer))
     (let ((a (assoc f
 		     *weak-fn-alist*
-		     :key #'ext:weak-pointer-value)))
+		     :key #+cmu     #'ext:weak-pointer-value
+                          #+sbcl #'sb-ext:make-weak-pointer)))
       (cond (a (setf (rest a) p)
 	       (if (null p)
 		   (.outdate-weak-fn-alist)))
-	    (t (push (cons (ext:make-weak-pointer f) p)
-		     *weak-fn-alist*)	  
-	       (ext:finalize f #'.outdate-weak-fn-alist)))
-      p))
-
-  #+sbcl
-  `(let ((f ,fn)
-	 (p ,printer))
-    (let ((a (assoc f
-		    *weak-fn-alist*
-		    :key #'sb-ext:weak-pointer-value)))
-      (cond (a (setf (rest a) p)
-	       (if (null p)
-		   (.outdate-weak-fn-alist)))
-	    (t (push (cons (sb-ext:make-weak-pointer f) p)
+	    (t (push (cons (#+cmu     ext:make-weak-pointer f
+                            #+sbcl sb-ext:make-weak-pointer)
+                           p)
 		     *weak-fn-alist*)
-	       (sb-ext:finalize f #'.outdate-weak-fn-alist)))
+	       (#+cmu     ext:finalize
+                #+sbcl sb-ext:finalize
+                #'.outdate-weak-fn-alist)))
       p))
 
   #-(or allegro clisp cmu lispworks mcl sbcl)
@@ -319,6 +306,8 @@
 ;PRINT-PRETTY-FUNCTION-TABLE
 
 (defun print-pretty-function-table (&optional (stream *standard-output*))
+  "Print the given pretty-function-table. It can be either an alist
+   or a hash-table depending on your implementation."
 
   #+(or allegro clisp lispworks mcl)
   (let ((n (hash-table-count *weak-fn-ht*)))
@@ -343,23 +332,20 @@
   (values))
 
 ;CLEAR-PRETTY-FUNCTION-TABLE
-	
-(defun clear-pretty-function-table (&optional (stream *standard-output*))
 
-  #+(or allegro clisp lispworks mcl)
-  (let ((n (hash-table-count *weak-fn-ht*)))
+(defun clear-pretty-function-table (&optional (stream *standard-output*))
+  "Remove all of the entries in the given pretty-function table. It
+   can be either an alist or a hash-table depending on your
+   implementation."
+
+  #+(or allegro clisp cmu lispworks mcl sbcl)
+  (let ((n #+(or allegro clisp lispworks mcl) (hash-table-count *weak-fn-ht*)
+           #+(or cmu sbcl) (length *weak-fn-alist*)))
     (if (zerop n)
 	(format stream "The pretty function table is empty!~%")
 	(format stream "~A pretty function~p deleted from the pretty function table~%" n n))
-    (clrhash *weak-fn-ht*))
-
-
-  #+(or cmu sbcl)
-  (let ((n (length *weak-fn-alist*)))
-    (if (zerop n)
-	(format stream "The pretty function table is empty!~%")
-	(format t "~A pretty function~p deleted from the pretty function table~%" n n))
-    (setf *weak-fn-alist* nil))
+    #+(or allegro clisp lispworks mcl) (clrhash *weak-fn-ht*)
+    #+(or cmu sbcl) (setf *weak-fn-alist* nil))
 
   #-(or allegro clisp cmu lispworks mcl sbcl)
   (warn "The implimentation you are using does not support pretty function printing")
